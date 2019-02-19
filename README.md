@@ -1,4 +1,2 @@
 # TOI-EOH
-hello
-
-Hi, my name is Anthony.
+This is a project for a lie detector.
