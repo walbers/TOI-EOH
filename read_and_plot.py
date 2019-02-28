@@ -8,152 +8,150 @@ import string
 import re
 import struct
 import functools
+import sys
 
 
 '''
 MUST RERUN PROGRAM AND RESET ARDUINO FOR EACH NEW PERSON.
 '''
+'''
+current code is written for 3 sensors on two arduinos, change shit if you want 4
+'''
 
-bpm = []
-stretchy = []
-gsr = []
+# global lists for storing sensor data
+bpm = [] #used to store values until averaged
+bpmValues = [] #stores average bpm valuesstretchy = []
+stretchy = [] #used to store values until averaged
+stretchyValues = [] #stores average stretchy values
+gsr = [] #used to store values until averaged
+gsrValues = [] #stores average gsr valuescount = 0
 
-#arduinoData = serial.Serial('COM4', 9600)  # Creating our serial object named arduinoData
-arduinoData2 = serial.Serial('COM3', 9600)  # Creating our serial object named arduinoData
+time = [] #currently stores index. this allows the x-axis to build constantly
+currIndex = 0 # a way to keep track of which value to put into time; is incremented after being appended
+sufficientEntries = 5 #a variable to allow enough time for graph and data to start loading in
+maxTime = 30 #currently unused
 
-#plt.ion()  # Tell matplotlib you want interactive mode to plot live data
+RECORD_DATA = 150 # after 150 data points plot
 NUM_SENSORS = 3
 count = 0
-isbpm = 0
+
+arduinoData = None
+arduinoData2 = None
+
+def setup():
+    try:
+        arduinoData = serial.Serial('COM4', 9600)  # Creating our serial object named arduinoData
+        arduinoData2 = serial.Serial('COM3', 9600)  # Creating our serial object named arduinoData
+    except serial.SerialException:
+        print('Plug in the arduino to the right COM please.')
+        sys.exit(0)
+
 
 
 def makeFig():  # Create a function that makes our desired plot
-    plt.ylim(0, 600)  # Set y min and max values
-    plt.title('My Live Streaming Sensor Data')  # Plot the title
-    plt.grid(True)  # Turn the grid on
-    plt.ylabel('Temp F')  # Set ylabels
-    plt.plot(z, 'ro-', label='Degrees F')  # plot the temperature
-    #plt.legend(loc='upper left')  # plot the legend
+    plot1 = plt.subplot(3,1,1) #allows graphing multiple simulaneously. the numbers represent 3 rows, 1 colmun, 1st position, respectively.
+    plot1.grid()
+    plot1.set_ylim(0, 600)  # Set y min and max values
+    plot1.set_title('My Live Streaming Sensor Data')  # Plot the title
+    #plt.grid(True)  # Turn the grid on
+    plot1.set_ylabel('Metric')  # Set ylabels
+    if currIndex > sufficientEntries:
+        plot1.set_xlim(0, currIndex - sufficientEntries)
+        plot1.plot(time, gsrValues, 'ro-', label='Number')  # plot the temperature
 
-    # plt2 = plt.twinx()  # Create a second y axis
-    # plt.ylim(0, 500)  # Set limits of second y axis- adjust to readings you are getting
-    # plt2.plot(stretchy, 'b^-', label='strechness (Pa)')  # plot pressure data
-    # plt2.set_ylabel('stretchness (Pa)')  # label second y axis
-    # plt2.ticklabel_format(useOffset=False)  # Force matplotlib to NOT autoscale y axis
-    # plt2.legend(loc='upper right')  # plot the legend
+    plot2 = plt.subplot(3,1,2) #will display a second graph directly beneath the first
+    plot2.grid()
+    plot2.set_ylim(0,600)#to create specific features for this graph, do plt.'functoin'(/*blah*/)
+    # #plt.title('Testing other graph')
+    # #plt.grid(True)
+    plot2.set_ylabel('nonsense')
+    if currIndex > sufficientEntries:
+        plot2.set_xlim(0, currIndex - sufficientEntries)
+        plot2.plot(time, stretchyValues, 'b--', label='Number') #plot other
 
-# def live_update_demo(blit = True):
-#     x = np.linspace(0,50., num=100)
-#     X,Y = np.meshgrid(x,x)
-#     fig = plt.figure()
-#     ax1 = fig.add_subplot(2, 1, 1)
-#     ax2 = fig.add_subplot(2, 1, 2)
-#
-#     fig.canvas.draw()   # note that the first draw comes before setting data
-#
-#     h1 = ax1.imshow(X, vmin=-1, vmax=1, interpolation="None", cmap="RdBu")
-#
-#     h2, = ax2.plot(x, lw=3)
-#     text = ax2.text(0.8,1.5, "")
-#     ax2.set_ylim([-1,1])
-#
-#
-#     if blit:
-#         # cache the background
-#         axbackground = fig.canvas.copy_from_bbox(ax1.bbox)
-#         ax2background = fig.canvas.copy_from_bbox(ax2.bbox)
-#
-#     t_start = time.time()
-#     k=0.
-#     for i in np.arange(1000):
-#         h1.set_data(np.sin(X/3.+k)*np.cos(Y/3.+k))
-#         h2.set_ydata(np.sin(x/3.+k))
-#         tx = 'Mean Frame Rate:\n {fps:.3f}FPS'.format(fps= ((i+1) / (time.time() - t_start)) )
-#         text.set_text(tx)
-#         #print tx
-#         k+=0.11
-#         if blit:
-#             # restore background
-#             fig.canvas.restore_region(axbackground)
-#             fig.canvas.restore_region(ax2background)
-#
-#             # redraw just the points
-#             ax1.draw_artist(h1)
-#             ax2.draw_artist(h2)
-#
-#             # fill in the axes rectangle
-#             fig.canvas.blit(ax1.bbox)
-#             fig.canvas.blit(ax2.bbox)
-#             # in this post http://bastibe.de/2013-05-30-speeding-up-matplotlib.html
-#             # it is mentionned that blit causes strong memory leakage.
-#             # however, I did not observe that.
-#
-#         else:
-#             # redraw everything
-#             fig.canvas.draw()
-#             fig.canvas.flush_events()
-#
-#
-#         plt.pause(0.000000000001)
-#         #plt.pause calls canvas.draw(), as can be read here:
-#         #http://bastibe.de/2013-05-30-speeding-up-matplotlib.html
-#         #however with Qt4 (and TkAgg??) this is needed. It seems,using a different backend,
-#         #one can avoid plt.pause() and gain even more speed.
+    plot3 = plt.subplot(3, 1, 3) #will display a third graph directly beneath the third
+    plot3.grid() #activate grid lines
+    plot3.set_ylim(0, 600) #to create specific features for this graph, do plt.'functoin'(/*blah*/)
+    # #plt.title('Testing other graph')
+    # #plt.grid(True)
+    plot3.set_ylabel('Other Nonsense')
+    if currIndex > sufficientEntries:
+        plot3.set_xlim(0, currIndex - sufficientEntries)
+        plot3.plot(time, bpmValues, 'b--', label='Number')  # plot other; the 'b--' is a style thing. didn't play with it enough to know all the combinations
+
+def pre_plot():
+    # global shit?
+    bpm_chunk = functools.reduce(lambda x, y: x + y, bpm) / (RECORD_DATA / NUM_SENSORS-1) # 75?
+    stretchy_chunk = functools.reduce(lambda x, y: x + y, stretchy) / (RECORD_DATA / NUM_SENSORS-1)
+    gsr_chunk = functools.reduce(lambda x, y: x + y, gsr) / (RECORD_DATA / NUM_SENSORS-1)
+
+    # works?
+    bpmValues.append(bpm_chunk)
+    stretchyValues.append(stretchy_chunk)
+    gsrValues.append(gsr_chunk)
+
+    time.append(currIndex - sufficientEntries)
+    currIndex += 1
+
+    bpm.clear()
+    stretchy.clear()
+    gsr.clear()
 
 
-# fig = plt.figure()
-# ax1 = fig.add_subplot(1,1,1)
-#
-# def animate(i):
-#     ax1.clear()
-#     ax1.plot(count, z)
-
-
-
-while True:  # While loop that loops forever
-    while (arduinoData2.inWaiting() == 0):  # Wait here until there is data
-        pass  # do nothing
-
-    mod = count % NUM_SENSORS
-
-    # if (mod == 0 or mod == 1):
-    #
-    #     arduinoReturn = arduinoData.readline() # get bytes from arduino
-    #
-    #     # turn bytes from arduino into int
-    #     arduinoString = str(arduinoReturn) # convert bytes to string
-    #     arduinoString = ''.join(ch for ch in arduinoString if ch.isalnum()) # get rid off all non alphanumeric bytes
-    #     x = int(re.search(r'\d+', arduinoString).group()) # get integer from string
-    #
-    #     if (isbpm):
-    #         bpm.append(x)
-    #         isbpm = 0
-    #     else:
-    #          stretchy.append(x)
-    #          isbpm = 1
-    #elif (mod == 2):
-    if (mod == 2):
+def get_int_from_arduino(mod):
+    # turn bytes from arduino into int
+    if (mod == 0):
+        arduinoReturn = arduinoData.readline() # get bytes from arduino
+    elif (mod == 1):
         arduinoReturn = arduinoData2.readline() # get bytes from arduino
 
-        # turn bytes from arduino into int
-        arduinoString = str(arduinoReturn) # convert bytes to string
-        arduinoString = ''.join(ch for ch in arduinoString if ch.isalnum()) # get rid off all non alphanumeric bytes
-        x = int(re.search(r'\d+', arduinoString).group()) # get integer from string
+    arduinoString = str(arduinoReturn) # convert bytes to string
+    arduinoString = ''.join(ch for ch in arduinoString if ch.isalnum()) # get rid off all non alphanumeric bytes
+    x = int(re.search(r'\d+', arduinoString).group()) # get integer from string
+    return x
 
-        gsr.append(x)
 
-    if (count%90 == 0 and count > 400):
-        print('averaging')
-        print(gsr)
-        # w = functools.reduce(lambda x, y: x + y, bpm) / 30
-        # m = functools.reduce(lambda x, y: x + y, stretchy) / 30
-        z = functools.reduce(lambda x, y: x + y, gsr) / 30
-        print(z)
-        # bpm.clear()
-        # stretchy.clear()
-        gsr.clear()
 
-        if (count > 600):
-            drawnow(makeFig)  # Call drawnow to update our live graph
-            plt.pause(.000001)  # Pause Briefly. Important to keep drawnow from crashing
-    count += 1
+def loop():
+    while True:
+        global count # complained without this
+
+        # Wait here until there is data
+        while (arduinoData.inWaiting() == 0 or arduinoData2.inWaiting() == 0):
+            pass
+
+        mod = count % NUM_SENSORS
+
+        # arduino with two sensors - sends bpm first then stretchy
+        if (mod == 0):
+            bpm.append(get_int_from_arduino(mod))
+            stretchy.append(get_int_from_arduino(mod))
+
+            # if (isbpm):
+            #     bpm.append(x)
+            #     #print(x)
+            #     isbpm = 0
+            # else:
+            #      stretchy.append(x)
+            #      isbpm = 1
+        # arduino with gsr
+        elif (mod == 1):
+            gsr.append(get_int_from_arduino(mod))
+
+        if (count%RECORD_DATA == 0 and count > RECORD_DATA*3): # the first 3 sets are garbage
+            #print('averaging')
+            #print(bpm)
+            #print(stretchy)
+            #print(gsr)
+            #print(len(bpm))
+            #print(len(gsr))
+            pre_plot()
+
+            if (count > 600):
+                drawnow(makeFig)  # Call drawnow to update our live graph
+                plt.pause(.000001)  # Pause Briefly. Important to keep drawnow from crashing
+        count += 1
+
+plt.figure(figsize=[12, 7.5]) #initial width and height of the display. pressing x will close the window, and the default size will show up
+setup()
+loop()
