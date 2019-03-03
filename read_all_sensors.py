@@ -31,7 +31,7 @@ pressureValues = []
 
 time = [] #currently stores index. this allows the x-axis to build constantly
 currIndex = 0 # a way to keep track of which value to put into time; is incremented after being appended
-sufficientEntries = 5 #a variable to allow enough time for graph and data to start loading in
+sufficientEntries = 4 #a variable to allow enough time for graph and data to start loading in
 maxTime = 30 #currently unused
 
 arduinoData = None
@@ -68,15 +68,28 @@ def makeFig():  # Create a function that makes our desired plot
     plot1.set_ylim(0, 600)  # Set y min and max values
     plot1.set_title('My Live Streaming Sensor Data')  # Plot the title
     plot1.set_ylabel('sweaty/gsr')  # Set ylabels
+
+    threshold1 = 200 #how to find?
+    plot1.axhline(y=threshold1, color='r', linestyle='dotted') #create a line to represent the threshold
+    percentDiff1 = ((gsrValues[currIndex - 1] - threshold1) / threshold1)
+    plot1.legend([round(percentDiff1, 2)], loc='upper right')   # prints out the difference between plotted point
+                                                                # and the the threshold.
     if currIndex > sufficientEntries:
         plot1.set_xlim(0, currIndex - sufficientEntries)
-        plot1.plot(time, gsrValues, 'ro-', label='Number')  # plot the temperature
+        plot1.plot(time, gsrValues, 'r--', label='Number')
 
     # stretchy
-    plot2 = plt.subplot(4,1,2) #will display a second graph directly beneath the first
-    plot2.grid()
-    plot2.set_ylim(0,600)#to create specific features for this graph, do plt.'functoin'(/*blah*/)
+    plot2 = plt.subplot(4, 1, 2)    #will display a second graph directly beneath the first
+    plot2.grid() #activate grid lines
+    plot2.set_ylim(0,600)
     plot2.set_ylabel('stretchy')
+
+    threshold2 = 200  # how to find?
+    plot2.axhline(y=threshold2, color='r', linestyle='dotted')  # create a line to represent the threshold
+    percentDiff2 = ((stretchyValues[currIndex - 1] - threshold2) / threshold2)
+    plot2.legend([round(percentDiff2, 2)], loc='upper right')   # prints out the difference between plotted point
+                                                                # and the the threshold.
+
     if currIndex > sufficientEntries:
         plot2.set_xlim(0, currIndex - sufficientEntries)
         plot2.plot(time, stretchyValues, 'b--', label='Number') #plot other
@@ -84,20 +97,32 @@ def makeFig():  # Create a function that makes our desired plot
     # bpm
     plot3 = plt.subplot(4, 1, 3) #will display a third graph directly beneath the third
     plot3.grid() #activate grid lines
-    plot3.set_ylim(0, 150) #to create specific features for this graph, do plt.'functoin'(/*blah*/)
+    plot3.set_ylim(0, 150)
     plot3.set_ylabel('bpm')
+
+    threshold3 = 200  # how to find?
+    plot3.axhline(y=threshold3, color='r', linestyle='dotted')  # create a line to represent the threshold
+    percentDiff3 = ((stretchyValues[currIndex - 1] - threshold3) / threshold3)
+    plot3.legend([round(percentDiff3, 2)], loc='upper right')   # prints out the difference between plotted point
+                                                                # and the the threshold.
     if currIndex > sufficientEntries:
         plot3.set_xlim(0, currIndex - sufficientEntries)
-        plot3.plot(time, bpmValues, 'b--', label='Number')  # plot other; the 'b--' is a style thing. didn't play with it enough to know all the combinations
+        plot3.plot(time, bpmValues, 'y--', label='Number')  # plot other; the 'b--' is a style thing.
 
     # pressure
     plot4 = plt.subplot(4, 1, 4) #will display a third graph directly beneath the third
     plot4.grid() #activate grid lines
-    plot4.set_ylim(0, 100) #to create specific features for this graph, do plt.'functoin'(/*blah*/)
+    plot4.set_ylim(0, 100)
     plot4.set_ylabel('pressure')
+
+    threshold4 = 200  # how to find?
+    plot4.axhline(y=threshold4, color='r', linestyle='dotted')  # create a line to represent the threshold
+    percentDiff4 = ((stretchyValues[currIndex - 1] - threshold4) / threshold4)
+    plot4.legend([round(percentDiff4, 2)], loc='upper right')   # prints out the difference between plotted point
+                                                                # and the the threshold.
     if currIndex > sufficientEntries:
         plot4.set_xlim(0, currIndex - sufficientEntries)
-        plot4.plot(time, bpmValues, 'b--', label='Number')  # plot other; the 'b--' is a style thing. didn't play with it enough to know all the combinations
+        plot4.plot(time, bpmValues, 'g--', label='Number')  # plot other; the 'b--' is a style thing.
 
 def get_int_from_arduino(mod):
     # turn bytes from arduino into int
@@ -105,7 +130,7 @@ def get_int_from_arduino(mod):
         arduinoReturn = arduinoData.readline() # get bytes from arduino
     elif (mod == 1):
         arduinoReturn = arduinoData2.readline() # get bytes from arduino
-    else (mod == 2):
+    elif (mod == 2):
         arduinoReturn = arduinoData3.readline() # get bytes from arduino
 
 
@@ -149,7 +174,7 @@ def loop():
             z = functools.reduce(lambda x, y: x + y, gsr) / 20
             q = functools.reduce(lambda x, y: x + y, pressure) / 20
             bpmValues.append(w)
-            stretchyValues.append(m) # NOTE SURE IF ALL THE DATA CAN BE COLLECTED SIMULTAENOUSLY. IF IT CAN, YOU CAN PUT M AS THE ARGUMENT
+            stretchyValues.append(m) # NOT SURE IF ALL THE DATA CAN BE COLLECTED SIMULTAENOUSLY. IF IT CAN, YOU CAN PUT M AS THE ARGUMENT
             gsrValues.append(z)
             pressureValues.append(q)
 
