@@ -9,6 +9,13 @@ import re
 import struct
 import functools
 
+
+from pynput import keyboard
+from pynput.keyboard import Key, Controller
+import time
+
+
+
 '''
 MUST RERUN PROGRAM AND RESET ARDUINO FOR EACH NEW PERSON.
 '''
@@ -25,6 +32,8 @@ stretchyValues = [] #stores average stretchy values
 
 gsr = [] #used to store values until averaged
 gsrValues = [] #stores average gsr values
+lowergsr = 0
+uppergsr = 600
 
 pressure = []
 pressureValues = []
@@ -38,10 +47,14 @@ arduinoData = None
 arduinoData2 = None
 # arduinoData3 = None
 
-NUM_SENSORS = 4
-NUM_BOARDS = 3
+NUM_SENSORS = 3
+NUM_BOARDS = 2
 count = 0
 isbpm = 0
+
+threshold1 = 200
+threshold2 = 200
+threshold3 = 200
 
 def setup():
     try:
@@ -53,76 +66,109 @@ def setup():
         # 3 is gsr and left port
         arduinoData2 = serial.Serial('COM3', 9600)  # Creating our serial object named arduinoData
         # 5 is pressure and top righ port
-        arduinoData3 = serial.Serial('COM5', 9600)  # Creating our serial object named arduinoData
+        # arduinoData3 = serial.Serial('COM5', 9600)  # Creating our serial object named arduinoData
     except serial.SerialException:
         print('Plug in the arduino to the right COM please.')
         sys.exit(0)
+
+''' MOHI '''
+typer = Controller()
+def on_press(key):
+    global threshold1
+    global threshold2
+    global threshold3
+    try:
+        #print("this is:" + key)
+        print('alphanumeric key {0} pressed'.format(
+            key.char
+        ))
+        if key.char == 'i':
+            mp.savefig('graph_output.png')
+        if key.char == 't':
+            if currIndex > 6:
+                for i in range(2,7):
+                    threshold1 += gsrValues[currIndex-i]
+                    threshold2 += stretchyValues[currIndex-i]
+                    threshold3 += bpmValues[currIndex-i]
+                    # TODO SENSOR 4
+                threshold1 /= 5
+                threshold2 /= 5
+                threshold3 /= 5
+
+            #threshold1 = (gsrValues[currIndex-2] + gsrValues[currIndex-3] + gsrValues[currIndex-4] + gsrValues[currIndex-5] + gsrValues[currIndex-6]) / 5
+
+    except AttributeError:
+        print('special key {0} pressed'.format(key))
+
+def on_release(key):
+    if key == keyboard.Key.esc:
+        return False
 
 
 def makeFig():  # Create a function that makes our desired plot
     global currIndex
 
     # sweaty gsr
-    plot1 = plt.subplot(4,1,1) #allows graphing multiple simulaneously. the numbers represent 3 rows, 1 colmun, 1st position, respectively.
+    plot1 = plt.subplot(3,1,1) #allows graphing multiple simulaneously. the numbers represent 3 rows, 1 colmun, 1st position, respectively.
     plot1.grid()
     plot1.set_ylim(0, 600)  # Set y min and max values
     plot1.set_title('My Live Streaming Sensor Data')  # Plot the title
     plot1.set_ylabel('sweaty/gsr')  # Set ylabels
 
-    threshold1 = 200 #how to find?
-    plot1.axhline(y=threshold1, color='r', linestyle='dotted') #create a line to represent the threshold
-    percentDiff1 = ((gsrValues[currIndex - 1] - threshold1) / threshold1)
-    plot1.legend([round(percentDiff1, 2)], loc='upper right')   # prints out the difference between plotted point
-                                                                # and the the threshold.
+
     if currIndex > sufficientEntries:
+        plot1.axhline(y=threshold1, color='r', linestyle='dotted') #create a line to represent the threshold
+        percentDiff1 = ((gsrValues[currIndex - 1] - threshold1) / threshold1)
+        plot1.legend([round(percentDiff1, 2)], loc='upper right')   # prints out the difference between plotted point
+
         plot1.set_xlim(0, currIndex - sufficientEntries)
         plot1.plot(time, gsrValues, 'r--', label='Number')
+                                                            # and the the threshold.
 
     # stretchy
-    plot2 = plt.subplot(4, 1, 2)    #will display a second graph directly beneath the first
+    plot2 = plt.subplot(3, 1, 2)    #will display a second graph directly beneath the first
     plot2.grid() #activate grid lines
     plot2.set_ylim(0,600)
     plot2.set_ylabel('stretchy')
 
-    threshold2 = 200  # how to find?
-    plot2.axhline(y=threshold2, color='r', linestyle='dotted')  # create a line to represent the threshold
-    percentDiff2 = ((stretchyValues[currIndex - 1] - threshold2) / threshold2)
-    plot2.legend([round(percentDiff2, 2)], loc='upper right')   # prints out the difference between plotted point
-                                                                # and the the threshold.
+                                                        # and the the threshold.
 
     if currIndex > sufficientEntries:
+        plot2.axhline(y=threshold2, color='r', linestyle='dotted')  # create a line to represent the threshold
+        percentDiff2 = ((stretchyValues[currIndex - 1] - threshold2) / threshold2)
+        plot2.legend([round(percentDiff2, 2)], loc='upper right')   # prints out the difference between plotted point
+
         plot2.set_xlim(0, currIndex - sufficientEntries)
-        plot2.plot(time, stretchyValues, 'b--', label='Number') #plot other
+        plot2.plot(time, stretchyValues, 'bo-', label='Number') #plot other
 
     # bpm
-    plot3 = plt.subplot(4, 1, 3) #will display a third graph directly beneath the third
+    plot3 = plt.subplot(3, 1, 3) #will display a third graph directly beneath the third
     plot3.grid() #activate grid lines
     plot3.set_ylim(0, 150)
     plot3.set_ylabel('bpm')
-
-    threshold3 = 200  # how to find?
-    plot3.axhline(y=threshold3, color='r', linestyle='dotted')  # create a line to represent the threshold
-    percentDiff3 = ((stretchyValues[currIndex - 1] - threshold3) / threshold3)
-    plot3.legend([round(percentDiff3, 2)], loc='upper right')   # prints out the difference between plotted point
-                                                                # and the the threshold.
+                            # and the the threshold.
     if currIndex > sufficientEntries:
+        plot3.axhline(y=threshold3, color='r', linestyle='dotted')  # create a line to represent the threshold
+        percentDiff3 = ((bpmValues[currIndex - 1] - threshold3) / threshold3)
+        plot3.legend([round(percentDiff3, 2)], loc='upper right')   # prints out the difference between plotted point
+
         plot3.set_xlim(0, currIndex - sufficientEntries)
-        plot3.plot(time, bpmValues, 'y--', label='Number')  # plot other; the 'b--' is a style thing.
+        plot3.plot(time, bpmValues, 'g--', label='Number')  # plot other; the 'b--' is a style thing.
 
     # pressure
-    plot4 = plt.subplot(4, 1, 4) #will display a third graph directly beneath the third
-    plot4.grid() #activate grid lines
-    plot4.set_ylim(0, 100)
-    plot4.set_ylabel('pressure')
-
-    threshold4 = 200  # how to find?
-    plot4.axhline(y=threshold4, color='r', linestyle='dotted')  # create a line to represent the threshold
-    percentDiff4 = ((stretchyValues[currIndex - 1] - threshold4) / threshold4)
-    plot4.legend([round(percentDiff4, 2)], loc='upper right')   # prints out the difference between plotted point
-                                                                # and the the threshold.
-    if currIndex > sufficientEntries:
-        plot4.set_xlim(0, currIndex - sufficientEntries)
-        plot4.plot(time, bpmValues, 'g--', label='Number')  # plot other; the 'b--' is a style thing.
+    # plot4 = plt.subplot(4, 1, 4) #will display a third graph directly beneath the third
+    # plot4.grid() #activate grid lines
+    # plot4.set_ylim(0, 100)
+    # plot4.set_ylabel('pressure')
+    #
+    # threshold4 = 200  # how to find?
+    # plot4.axhline(y=threshold4, color='r', linestyle='dotted')  # create a line to represent the threshold
+    # percentDiff4 = ((stretchyValues[currIndex - 1] - threshold4) / threshold4)
+    # plot4.legend([round(percentDiff4, 2)], loc='upper right')   # prints out the difference between plotted point
+    #                                                             # and the the threshold.
+    # if currIndex > sufficientEntries:
+    #     plot4.set_xlim(0, currIndex - sufficientEntries)
+    #     plot4.plot(time, bpmValues, 'g--', label='Number')  # plot other; the 'b--' is a style thing.
 
 def get_int_from_arduino(mod):
     # turn bytes from arduino into int
@@ -130,8 +176,8 @@ def get_int_from_arduino(mod):
         arduinoReturn = arduinoData.readline() # get bytes from arduino
     elif (mod == 1):
         arduinoReturn = arduinoData2.readline() # get bytes from arduino
-    elif (mod == 2):
-        arduinoReturn = arduinoData3.readline() # get bytes from arduino
+    # elif (mod == 2):
+    #     arduinoReturn = arduinoData3.readline() # get bytes from arduino
 
 
     arduinoString = str(arduinoReturn) # convert bytes to string
@@ -143,53 +189,66 @@ def get_int_from_arduino(mod):
 
     return x
 
+
 def loop():
     global count
     global isbpm
     global currIndex
-    while True:  # While loop that loops forever
-        while (arduinoData.inWaiting() == 0 or arduinoData2.inWaiting() == 0 or arduinoData3.inWaiting() == 0):  # Wait here until there is data
-            pass  # do nothing
+    with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
+        while True:  # While loop that loops forever
+            while (arduinoData.inWaiting() == 0 or arduinoData2.inWaiting() == 0): # or arduinoData3.inWaiting() == 0):  # Wait here until there is data
+                pass  # do nothing
 
 
-        mod = count % NUM_BOARDS
+            mod = count % NUM_BOARDS
 
-        if (mod == 0):
-            tiger = get_int_from_arduino(mod)
-            # filter out real big numbers
-            if tiger > 500 and currIndex > sufficientEntries:
-                tiger = stretchyValues[currIndex]
-            stretchy.append(tiger)
+            if (mod == 0):
+                tiger = get_int_from_arduino(mod)
+                # filter out real big numbers
+                if tiger > 500 and currIndex > sufficientEntries:
+                    tiger = stretchyValues[currIndex-1]
+                stretchy.append(tiger)
 
-            bpm.append(get_int_from_arduino(mod))
-        elif (mod == 1):
-            gsr.append(get_int_from_arduino(mod))
-        elif (mod == 2):
-            pressure.append(get_int_from_arduino(mod))
+                bpm.append(get_int_from_arduino(mod))
+                #print(bpm)
+            elif (mod == 1):
+                gsr.append(get_int_from_arduino(mod))
+            # elif (mod == 2):
+            #     pressure.append(get_int_from_arduino(mod))
 
 
-        if (count%60 == 0 and count > 400):
-            w = functools.reduce(lambda x, y: x + y, bpm) / 20
-            m = functools.reduce(lambda x, y: x + y, stretchy) / 20
-            z = functools.reduce(lambda x, y: x + y, gsr) / 20
-            q = functools.reduce(lambda x, y: x + y, pressure) / 20
-            bpmValues.append(w)
-            stretchyValues.append(m) # NOT SURE IF ALL THE DATA CAN BE COLLECTED SIMULTAENOUSLY. IF IT CAN, YOU CAN PUT M AS THE ARGUMENT
-            gsrValues.append(z)
-            pressureValues.append(q)
+            if (count%40 == 0 and count > 400):
+                w = functools.reduce(lambda x, y: x + y, bpm) / 20
+                m = functools.reduce(lambda x, y: x + y, stretchy) / 20
+                z = functools.reduce(lambda x, y: x + y, gsr) / 20
+                # q = functools.reduce(lambda x, y: x + y, pressure) / 20
+                bpmValues.append(w)
+                stretchyValues.append(m) # NOT SURE IF ALL THE DATA CAN BE COLLECTED SIMULTAENOUSLY. IF IT CAN, YOU CAN PUT M AS THE ARGUMENT
+                gsrValues.append(z)
+                # pressureValues.append(q)
 
-            time.append(currIndex - sufficientEntries)  #The first 'sufficientEntries' entries recorded will not be displayed
-                                                        #The first 2 entries, from my testing haven't been useful.
-            currIndex = currIndex + 1
-            bpm.clear()
-            stretchy.clear()
-            gsr.clear()
-            pressure.clear()
+                #print(bpm)
+                #print(len(bpm))
+                #print(bpmValues)
+                #print(stretchyValues)
+                #print(gsrValues)
+                if  (currIndex == 20):
+                    lowergsr = functools.reduce(lambda x, y: x+y, bpmValues) / len(bpmValues) + 30
+                    uppergsr = functools.reduce(lambda x, y: x+y, bpmValues) / len(bpmValues) - 30
 
-            if (count > 600):
-                drawnow(makeFig)  # Call drawnow to update our live graph
-                plt.pause(.000001)  # Pause Briefly. Important to keep drawnow from crashing
-        count += 1
+
+                time.append(currIndex - sufficientEntries)  #The first 'sufficientEntries' entries recorded will not be displayed
+                                                            #The first 2 entries, from my testing haven't been useful.
+                currIndex = currIndex + 1
+                bpm.clear()
+                stretchy.clear()
+                gsr.clear()
+                # pressure.clear()
+
+                if (count > 600):
+                    drawnow(makeFig)  # Call drawnow to update our live graph
+                    plt.pause(.000001)  # Pause Briefly. Important to keep drawnow from crashing
+            count += 1
 
 plt.figure(figsize=[12, 6.5]) #initial width and height of the display. pressing x will close the window, and the default size will show up
 setup()
