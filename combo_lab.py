@@ -77,21 +77,22 @@ def run():
                 # gets forehead from image and turns into lab
 
                 # MIDDLE FACE REGION
-                forehead = frame[y+90:y+200, x:x+w]
-                rgb_forehead = cv2.cvtColor(forehead, cv2.COLOR_BGR2RGB)
-                lab_forehead = color.rgb2lab(rgb_forehead)
+                if ret:
+                    forehead = frame[y+90:y+200, x:x+w]
+                    rgb_forehead = cv2.cvtColor(forehead, cv2.COLOR_BGR2RGB)
+                    lab_forehead = color.rgb2lab(rgb_forehead)
 
-                rows = len(lab_forehead)
-                cols = len(lab_forehead[0])
-                for i in range(rows):
-                    for j in range(cols):
-                        #for w in range(len(lab_forehead[0][0])):
-                        #    print(lab_forehead[i][j][w])
-                        L += lab_forehead[i][j][0]
-                        #A += lab_forehead[i][j][1]
-                        #B += lab_forehead[i][j][2]
-                numpix = rows*cols
-                L = L/(numpix)
+                    rows = len(lab_forehead)
+                    cols = len(lab_forehead[0])
+                    for i in range(rows):
+                        for j in range(cols):
+                            #for w in range(len(lab_forehead[0][0])):
+                            #    print(lab_forehead[i][j][w])
+                            L += lab_forehead[i][j][0]
+                            #A += lab_forehead[i][j][1]
+                            #B += lab_forehead[i][j][2]
+                    numpix = rows*cols
+                    L = L/(numpix)
 
 #            print(L)
             # amplifier
