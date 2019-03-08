@@ -45,12 +45,12 @@ maxTime = 30 #currently unused
 
 arduinoData = None
 arduinoData2 = None
-# arduinoData3 = None
+arduinoData3 = None
 
 NUM_SENSORS = 3
-NUM_BOARDS = 2
+NUM_BOARDS = 3
 count = 0
-isbpm = 0
+#isbpm = 0
 
 threshold1 = 1
 threshold2 = 100
@@ -66,7 +66,7 @@ def setup():
         # 3 is gsr and left port
         arduinoData2 = serial.Serial('COM3', 9600)  # Creating our serial object named arduinoData
         # 5 is pressure and top righ port
-        # arduinoData3 = serial.Serial('COM5', 9600)  # Creating our serial object named arduinoData
+        arduinoData3 = serial.Serial('COM5', 9600)  # Creating our serial object named arduinoData
     except serial.SerialException:
         print('Plug in the arduino to the right COM please.')
         sys.exit(0)
@@ -125,7 +125,7 @@ def makeFig():  # Create a function that makes our desired plot
     if currIndex > sufficientEntries:
         plot1.axhline(y=threshold1, color='r', linestyle='dotted') #create a line to represent the threshold
         percentDiff1 = ((gsrValues[currIndex - 1] - threshold1) / threshold1)
-        plot1.legend([round(percentDiff1, 2)], loc='upper right')   # prints out the difference between plotted point
+        plot1.legend([round(percentDiff1, 4)], loc='upper right')   # prints out the difference between plotted point
 
         plot1.set_xlim(0, currIndex - sufficientEntries)
         plot1.plot(time, gsrValues, 'r--', label='Number')
@@ -135,7 +135,7 @@ def makeFig():  # Create a function that makes our desired plot
     plot2 = plt.subplot(3, 1, 2)    #will display a second graph directly beneath the first
     plot2.grid() #activate grid lines
     #plot2.set_ylim(threshold2-100, threshold2+100)
-    plot2.set_ylim(0, 400)
+    plot2.set_ylim(threshold2-75, threshold2+75)
     plot2.set_ylabel('stretchy')
 
                                                         # and the the threshold.
@@ -143,7 +143,7 @@ def makeFig():  # Create a function that makes our desired plot
     if currIndex > sufficientEntries:
         plot2.axhline(y=threshold2, color='r', linestyle='dotted')  # create a line to represent the threshold
         percentDiff2 = ((stretchyValues[currIndex - 1] - threshold2) / threshold2)
-        plot2.legend([round(percentDiff2, 2)], loc='upper right')   # prints out the difference between plotted point
+        plot2.legend([round(percentDiff2, 4)], loc='upper right')   # prints out the difference between plotted point
 
         plot2.set_xlim(0, currIndex - sufficientEntries)
         plot2.plot(time, stretchyValues, 'bo-', label='Number') #plot other
@@ -157,7 +157,7 @@ def makeFig():  # Create a function that makes our desired plot
     if currIndex > sufficientEntries:
         plot3.axhline(y=threshold3, color='r', linestyle='dotted')  # create a line to represent the threshold
         percentDiff3 = ((bpmValues[currIndex - 1] - threshold3) / threshold3)
-        plot3.legend([round(percentDiff3, 2)], loc='upper right')   # prints out the difference between plotted point
+        plot3.legend([round(percentDiff3, 4)], loc='upper right')   # prints out the difference between plotted point
 
         plot3.set_xlim(0, currIndex - sufficientEntries)
         plot3.plot(time, bpmValues, 'g--', label='Number')  # plot other; the 'b--' is a style thing.
@@ -182,11 +182,11 @@ def makeFig():  # Create a function that makes our desired plot
 def get_int_from_arduino(mod):
     # turn bytes from arduino into int
     if (mod == 0):
-        arduinoReturn = arduinoData.readline() # get bytes from arduino
+        arduinoReturn = arduinoData3.readline() # get bytes from arduino
     elif (mod == 1):
         arduinoReturn = arduinoData2.readline() # get bytes from arduino
-    # elif (mod == 2):
-    #     arduinoReturn = arduinoData3.readline() # get bytes from arduino
+    elif (mod == 2):
+        arduinoReturn = arduinoData.readline() # get bytes from arduino
 
 
     arduinoString = str(arduinoReturn) # convert bytes to string
@@ -196,8 +196,8 @@ def get_int_from_arduino(mod):
     if not hmm is None:
         x = int(hmm.group()) # get integer from string
     
-    if (mod == 0):
-        print(x)
+    #if (mod == 2):
+      #  print(x)
     return x
 
 
@@ -220,18 +220,17 @@ def loop():
                     tiger = stretchyValues[currIndex-1]
                 stretchy.append(tiger)
 
-                bpm.append(get_int_from_arduino(mod))
                 #print(bpm)
             elif (mod == 1):
                 gsr.append(get_int_from_arduino(mod))
-            # elif (mod == 2):
-            #     pressure.append(get_int_from_arduino(mod))
+            elif (mod == 2):
+                bpm.append(get_int_from_arduino(mod))
+                
 
-
-            if (count%40 == 0 and count > 400):
-                w = functools.reduce(lambda x, y: x + y, bpm) / 20
-                m = functools.reduce(lambda x, y: x + y, stretchy) / 20
-                z = functools.reduce(lambda x, y: x + y, gsr) / 20
+            if (count%30 == 0 and count > 400):
+                w = functools.reduce(lambda x, y: x + y, bpm) / 10
+                m = functools.reduce(lambda x, y: x + y, stretchy) / 10
+                z = functools.reduce(lambda x, y: x + y, gsr) / 10
                 # q = functools.reduce(lambda x, y: x + y, pressure) / 20
                 bpmValues.append(w)
                 stretchyValues.append(m) # NOT SURE IF ALL THE DATA CAN BE COLLECTED SIMULTAENOUSLY. IF IT CAN, YOU CAN PUT M AS THE ARGUMENT
