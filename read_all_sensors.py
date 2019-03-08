@@ -52,9 +52,9 @@ NUM_BOARDS = 2
 count = 0
 isbpm = 0
 
-threshold1 = 200
-threshold2 = 200
-threshold3 = 200
+threshold1 = 1
+threshold2 = 100
+threshold3 = 1
 
 def setup():
     try:
@@ -86,15 +86,21 @@ def on_press(key):
             mp.savefig('graph_output.png')
         if key.char == 't':
             if currIndex > 6:
+                threshold1 = 0
+                threshold2 = 0
+                threshold3 = 0
                 for i in range(2,7):
                     threshold1 += gsrValues[currIndex-i]
                     threshold2 += stretchyValues[currIndex-i]
                     threshold3 += bpmValues[currIndex-i]
+                    print(bpmValues[currIndex-i])
                     # TODO SENSOR 4
+                print('a', threshold3)
                 threshold1 /= 5
                 threshold2 /= 5
                 threshold3 /= 5
-
+            
+                print('t', threshold3)
             #threshold1 = (gsrValues[currIndex-2] + gsrValues[currIndex-3] + gsrValues[currIndex-4] + gsrValues[currIndex-5] + gsrValues[currIndex-6]) / 5
 
     except AttributeError:
@@ -128,7 +134,8 @@ def makeFig():  # Create a function that makes our desired plot
     # stretchy
     plot2 = plt.subplot(3, 1, 2)    #will display a second graph directly beneath the first
     plot2.grid() #activate grid lines
-    plot2.set_ylim(0,600)
+    #plot2.set_ylim(threshold2-100, threshold2+100)
+    plot2.set_ylim(0, 400)
     plot2.set_ylabel('stretchy')
 
                                                         # and the the threshold.
@@ -170,6 +177,8 @@ def makeFig():  # Create a function that makes our desired plot
     #     plot4.set_xlim(0, currIndex - sufficientEntries)
     #     plot4.plot(time, bpmValues, 'g--', label='Number')  # plot other; the 'b--' is a style thing.
 
+        
+
 def get_int_from_arduino(mod):
     # turn bytes from arduino into int
     if (mod == 0):
@@ -186,7 +195,9 @@ def get_int_from_arduino(mod):
     x = 0
     if not hmm is None:
         x = int(hmm.group()) # get integer from string
-
+    
+    if (mod == 0):
+        print(x)
     return x
 
 
@@ -240,9 +251,12 @@ def loop():
                 time.append(currIndex - sufficientEntries)  #The first 'sufficientEntries' entries recorded will not be displayed
                                                             #The first 2 entries, from my testing haven't been useful.
                 currIndex = currIndex + 1
-                bpm.clear()
-                stretchy.clear()
-                gsr.clear()
+                del bpm[:]
+                del stretchy[:]
+                del gsr[:]
+                #bpm.clear()
+                #stretchy.clear()
+                #gsr.clear()
                 # pressure.clear()
 
                 if (count > 600):
